@@ -1,0 +1,130 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "YbHmTmOtl3pvhH1NL0nkW"
+uri = "file://artifacts/blade-rush/assets/audio/sfx_tap.mp3"
+type = "audio"
+title = "tap"
+description = "Generated sound effect: Soft bubbly UI button tap pop, clean and short, mobile game"
+logical_id = "003122d0-f81b-4726-aeb7-6b22e63c1732"
+
+[[outputs]]
+id = "0qc6NH2e2750NUuKc7UPe"
+uri = "file://artifacts/blade-rush/assets/audio/sfx_fail.mp3"
+type = "audio"
+title = "fail"
+description = "Generated sound effect: Metallic clang of a knife bouncing off another knife, ringing ping, cartoon game fail"
+logical_id = "61b1f25f-96b2-4e74-b8c3-afdbd1507566"
+
+[[outputs]]
+id = "yoVPge5rGm0sjF71XPBNW"
+uri = "file://artifacts/blade-rush/assets/audio/sfx_boss.mp3"
+type = "audio"
+title = "boss"
+description = "Generated sound effect: Dramatic arcade boss intro hit, deep taiko drum boom with a rising whoosh, family friendly"
+logical_id = "9421978c-53e9-41ab-81da-d31ee886e596"
+
+[[outputs]]
+id = "l701W1vIvqOGytkJZok47"
+uri = "file://artifacts/blade-rush/assets/audio/sfx_coin.mp3"
+type = "audio"
+title = "coin"
+description = "Generated sound effect: Bright single coin pickup tick chime, sparkly, mobile game reward"
+logical_id = "d473a28e-d954-44f3-b83d-9b1b4f5f708f"
+
+[[outputs]]
+id = "7DUB2EcTfNoD1TBNJu3fa"
+uri = "file://artifacts/blade-rush/assets/audio/sfx_powerup.mp3"
+type = "audio"
+title = "powerup"
+description = "Generated sound effect: Magical power-up activation, rising shimmering synth swirl, mobile game"
+logical_id = "03ccb798-f961-422e-b1e7-cb8545823e45"
+
+[[outputs]]
+id = "ukoM6WT6UEMpodisN_p9r"
+uri = "file://artifacts/blade-rush/assets/audio/sfx_whoosh.mp3"
+type = "audio"
+title = "whoosh"
+description = "Generated sound effect: Fast thin blade throw whoosh, airy swish"
+logical_id = "46063fb9-4a45-4178-bdc1-305f374a685b"
+
+[[outputs]]
+id = "6HNoqZNKvhl-XjLBs4Bt7"
+uri = "file://artifacts/blade-rush/assets/audio/sfx_reward.mp3"
+type = "audio"
+title = "reward"
+description = "Generated sound effect: Short celebratory fanfare jingle with sparkles, mobile game reward unlocked"
+logical_id = "20841038-ee59-4da1-9495-644453a6914d"
+
+[[outputs]]
+id = "jVb55VQVWanYsxagVXfYD"
+uri = "file://artifacts/blade-rush/assets/audio/sfx_thwack.mp3"
+type = "audio"
+title = "thwack"
+description = "Generated sound effect: Short punchy cartoon knife thunk sticking into a wooden log, satisfying solid wood impact, dry, no reverb"
+logical_id = "300534ab-b11e-48b7-976c-381ce3d44921"
+
+[[outputs]]
+id = "GO4PRDdx3bsSZT3skL-l9"
+uri = "file://artifacts/blade-rush/assets/audio/sfx_slice.mp3"
+type = "audio"
+title = "slice"
+description = "Generated sound effect: Quick juicy apple slice, crisp swish and wet crunch, cartoon game sound"
+logical_id = "cba91353-3d06-4497-a3e4-061427e525c6"
+
+[[outputs]]
+id = "0Wys8SoUMBU41CxKRSN77"
+uri = "file://artifacts/blade-rush/assets/audio/sfx_shatter.mp3"
+type = "audio"
+title = "shatter"
+description = "Generated sound effect: Wooden log target bursting into pieces, crunchy wood break with light debris, cartoon arcade victory"
+logical_id = "62e68975-f097-4555-9b7e-0f5ef9c3a24d"
+
+[[outputs]]
+id = "RGYf0-Y_aoh4m917_dK21"
+uri = "file://artifacts/blade-rush/assets/audio/music_volcano.mp3"
+type = "audio"
+title = "volcano"
+description = "Generated music: Energetic dramatic arcade loop, driving drums, bold brass stabs, playful tension, family friendly, seamless loop"
+logical_id = "e28ea598-5501-4ffe-85a9-44a0cfc65164"
+
+[[outputs]]
+id = "JDXpxKjjFSn4c2EjEcm9A"
+uri = "file://artifacts/blade-rush/assets/audio/music_workshop.mp3"
+type = "audio"
+title = "workshop"
+description = "Generated music: Cheerful cozy acoustic folk loop with plucked guitar, marimba and light percussion, playful arcade game background, warm wooden workshop vibe, seamless loop"
+logical_id = "70ee3b21-4c8c-494b-b2bf-813a414aa74f"
+
+[[outputs]]
+id = "4CZsCUulhpJ7Hi-tLQQdb"
+uri = "file://artifacts/blade-rush/assets/audio/music_candy.mp3"
+type = "audio"
+title = "music candy"
+description = "Generated music: Cheerful bouncy arcade game background loop: marimba, glockenspiel, ukulele, light claps and kick, around 118 BPM, sweet and playful candy-land mood, family friendly, seamless loop"
+logical_id = "5c8de87f-d4d6-404e-87ca-32b06128ca7a"
+
+[[outputs]]
+id = "UmKNCy5RJuxBWpO4F50xY"
+uri = "file://artifacts/blade-rush/assets/audio/music_neon.mp3"
+type = "audio"
+title = "music neon"
+description = "Generated music: Energetic synthwave arcade game background loop: punchy drums, pulsing bass arpeggio, bright neon synth lead, around 120 BPM, fun and driving, family friendly, seamless loop"
+logical_id = "1902f63d-a666-4ba5-87c4-c89e86e8ab8d"
+
+[[outputs]]
+id = "b0ehIizysZjsSuILYqZXA"
+uri = "file://artifacts/blade-rush/assets/audio/music_desert.mp3"
+type = "audio"
+title = "music desert"
+description = "Generated music: Upbeat adventurous arcade game background loop: hand percussion, plucked oud-like strings, warm bass, light flute melody, mid-tempo around 115 BPM, sunny canyon mood, family friendly…"
+logical_id = "4c311840-2749-46f7-88db-865bac6c0553"
+
+[[outputs]]
+id = "Aqj1kRsJWZxsd6UgnIaFu"
+uri = "file://artifacts/blade-rush/assets/audio/music_frost.mp3"
+type = "audio"
+title = "music frost"
+description = "Generated music: Gentle, sparkling arcade game background loop: glassy bells, soft synth pads, light plucked strings, icy chimes, steady mid-tempo beat around 110 BPM, playful and focused, family fri…"
+logical_id = "b1436eab-4a23-46dd-878f-18be1e74c114"

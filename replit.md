@@ -1,45 +1,61 @@
-# [Project name]
+# Twirlblade
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An Android-only, offline, portrait knife-throwing arcade game (package `com.apexplay.twirlblade`, publisher "apex"): tap to throw knives into a spinning target, slice apples, beat bosses and collect knives.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Game workflow: `artifacts/blade-rush: expo` (`pnpm --filter @workspace/blade-rush run dev`). Preview on web or scan the QR code in Expo Go.
+- `pnpm --filter @workspace/blade-rush run typecheck` — strict TypeScript check
+- `pnpm --filter @workspace/blade-rush run test` — vitest (stage generator, angles, engine)
+- Dev shortcut: open `/game/<mode>?stage=N` to start a run at stage N (ignored in release builds). Modes: `endless`, `fixed`, `daily`, `timeAttack`.
+- The API server and mockup sandbox artifacts are template leftovers; the game does not use them.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Expo (React Native) + expo-router, strict TypeScript
+- Rendering: @shopify/react-native-skia (game world drawn from code, no image assets); React Native views for HUD and menus
+- State: zustand store persisted to AsyncStorage
+- Ads: react-native-google-mobile-ads (Android builds only); a mock ad overlay runs in Expo Go and on web
+- Fonts: Lilita One (display) and Nunito (body)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/blade-rush/src/config/` — tunables: difficulty curve, economy, ad policy, ad unit IDs (`ads.ts`)
+- `artifacts/blade-rush/src/data/` — knives, bosses, worlds, achievements, missions
+- `artifacts/blade-rush/src/game/` — pure engine, stage generator, Skia renderer and procedural art
+- `artifacts/blade-rush/src/state/` — save format (`save.ts`) and store actions (`store.ts`)
+- `artifacts/blade-rush/src/ui/` — UI kit, game screen (`game/`), menu screens (`screens/`)
+- `artifacts/blade-rush/src/strings.ts` — every player-facing string (English only)
+- `artifacts/blade-rush/constants/colors.ts` — all color tokens; components never hard-code hex values
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The engine is pure TypeScript with no rendering, so it is unit-tested; the run controller owns mode rules, scoring and ad timing.
+- The world is redrawn each frame into a Skia picture handed to the canvas through a shared value; menus use native views.
+- On web, Skia's CanvasKit must load before any module that touches `Skia` is imported, so `index.web.js` loads CanvasKit and then dynamically imports the router entry. Never call Skia at module top level.
+- Knife previews are rendered once to PNG data URIs and shown as images so long store grids stay cheap.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Modes: Endless, Fixed Run (30 stages), Daily Challenge (10 seeded stages, one free attempt plus one from an ad), Time Attack (60 s).
+- A boss every 5th stage (20 bosses), 12 worlds, 50 cosmetic knives in 11 collections, 6 power-ups unlocked by stage.
+- Apples and gems, 42 achievements, 3 daily missions with a bonus chest, a 7-day login gift, settings with a double-confirm reset.
+- Age screen at first launch, Google UMP consent, banners, interstitials, rewarded ads and App Open (skipped in the first session).
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- The user writes in Egyptian Arabic; reply in Egyptian Arabic.
+- Android only; do not plan iOS work.
+- The production AdMob IDs in `src/config/ads.ts` and `app.json` were supplied by the user for this game; dev builds use Google test IDs.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- `react-native-google-mobile-ads` is not in Expo Go; real ads only appear in a store/EAS build.
+- Keep the AdMob app ID in `app.json` and `src/config/ads.ts` in sync.
+- SVG gradient ids must be unique per instance (`useId`), otherwise icons render black on web when another screen is hidden.
+- Headless Chrome has a minimum window width near 500 px; use device-metrics emulation for narrow phone screenshots.
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See the `expo` skill for Expo conventions
