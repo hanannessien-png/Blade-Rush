@@ -1,11 +1,12 @@
 /**
- * A knife preview rendered once to a PNG (see knifeArt.knifeImageUri) and
- * shown as an Image, so long store grids stay cheap. Animations run on the
- * native driver from one shared clock.
+ * A knife preview shown as a pre-rendered PNG (src/data/knifeImages.ts), so
+ * long store grids open instantly. Animations run on the native driver from
+ * one shared clock.
  */
 import React, { useMemo } from 'react';
 import { Animated, Easing, Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { KNIFE_BY_ID } from '../../data/knives';
+import { KNIFE_IMAGES } from '../../data/knifeImages';
+import { KNIFE_BY_ID, KNIVES } from '../../data/knives';
 import { knifeImageAspect, knifeImageUri } from '../../game/art/knifeArt';
 import { useGame } from '../../state/store';
 
@@ -40,7 +41,13 @@ interface Props {
 export function KnifeImage({ id, size, motion = 'static', dim, style }: Props) {
   const reduceMotion = useGame((s) => s.settings.reduceMotion);
   const def = KNIFE_BY_ID[id] ?? KNIFE_BY_ID.classic;
-  const uri = useMemo(() => knifeImageUri(def.id, def.style, 3), [def]);
+  // Fallback renders at runtime only for a knife that has no exported image yet.
+  const source = useMemo(() => {
+    const asset = KNIFE_IMAGES[def.id];
+    if (asset) return asset;
+    const uri = knifeImageUri(def.id, def.style, 3);
+    return uri ? { uri } : null;
+  }, [def]);
   const aspect = knifeImageAspect(def.style);
   const h = size * 0.98;
   const w = h * aspect;
@@ -50,10 +57,10 @@ export function KnifeImage({ id, size, motion = 'static', dim, style }: Props) {
 
   return (
     <View style={[{ width: size, height: size }, styles.center, style]}>
-      {uri && (
+      {source && (
         <Animated.View style={{ transform: [{ rotate }] }}>
           <Image
-            source={{ uri }}
+            source={source}
             style={{ width: w, height: h, opacity: dim ? 0.5 : 1 }}
             resizeMode="contain"
             accessibilityIgnoresInvertColors
@@ -70,3 +77,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+
+// Development helper (web preview console): re-renders every knife preview so the
+// PNGs in assets/knives can be refreshed after knife art changes.
+if (__DEV__ && typeof window !== 'undefined') {
+  (globalThis as { __knifeExport?: () => Record<string, string | null> }).__knifeExport = () =>
+    Object.fromEntries(KNIVES.map((k) => [k.id, knifeImageUri(k.id, k.style, 3)]));
+}
+

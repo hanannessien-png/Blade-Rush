@@ -91,7 +91,18 @@ export function QuitConfirm({ visible, onLeave, onStay }: { visible: boolean; on
 
 // ------------------------------------------------------------------ Game Over
 
-function CountdownRing({ progress, size = 34 }: { progress: number; size?: number }) {
+/** Ring that empties over the offer window. Only this small component ticks, not the whole panel. */
+function CountdownRing({ startedAt, size = 34 }: { startedAt: number; size?: number }) {
+  const total = AD_POLICY.continueCountdownSec * 1000;
+  const [progress, setProgress] = useState(() => Math.max(0, 1 - (Date.now() - startedAt) / total));
+  useEffect(() => {
+    const id = setInterval(() => {
+      const p = Math.max(0, 1 - (Date.now() - startedAt) / total);
+      setProgress(p);
+      if (p <= 0) clearInterval(id);
+    }, 66);
+    return () => clearInterval(id);
+  }, [startedAt, total]);
   const r = size / 2 - 3;
   const c = 2 * Math.PI * r;
   return (
@@ -113,22 +124,23 @@ function CountdownRing({ progress, size = 34 }: { progress: number; size?: numbe
   );
 }
 
-/** Seconds-left countdown for the Continue offer; restarts when `active` turns on. */
-function useOfferCountdown(active: boolean): number {
+/**
+ * The Continue offer window. Returns when it started (for the ring) and
+ * whether it is still open; the panel re-renders only when it opens and closes.
+ */
+function useOfferWindow(active: boolean): { startedAt: number; open: boolean } {
   const total = AD_POLICY.continueCountdownSec * 1000;
-  const [left, setLeft] = useState(total);
+  const [state, setState] = useState({ startedAt: 0, open: false });
   useEffect(() => {
-    if (!active) return;
-    const start = Date.now();
-    setLeft(total);
-    const id = setInterval(() => {
-      const l = Math.max(0, total - (Date.now() - start));
-      setLeft(l);
-      if (l <= 0) clearInterval(id);
-    }, 50);
-    return () => clearInterval(id);
+    if (!active) {
+      setState((s) => (s.open ? { ...s, open: false } : s));
+      return;
+    }
+    setState({ startedAt: Date.now(), open: true });
+    const id = setTimeout(() => setState((s) => ({ ...s, open: false })), total);
+    return () => clearTimeout(id);
   }, [active, total]);
-  return left / total;
+  return state;
 }
 
 interface GameOverProps {
@@ -158,8 +170,8 @@ interface GameOverProps {
 
 export function GameOverPanel(p: GameOverProps) {
   const offerActive = p.visible && (p.canContinue || p.canAddTime);
-  const progress = useOfferCountdown(offerActive);
-  const showOffer = offerActive && progress > 0;
+  const offer = useOfferWindow(offerActive);
+  const showOffer = offerActive && offer.open;
   const stagesMode = p.mode === 'timeAttack' || p.mode === 'daily';
   return (
     <BouncyModal visible={p.visible} title={p.timeUp ? S.gameOver.outOfTime : S.gameOver.title} titleColor={game.danger} backdropCloses={false}>
@@ -213,7 +225,7 @@ export function GameOverPanel(p: GameOverProps) {
         {showOffer && p.canContinue && (
           <GlossyButton skin="green" size="lg" onPress={p.onContinue} disabled={p.busy} accessibilityLabel={S.gameOver.continue}>
             <View style={styles.offerRow}>
-              <CountdownRing progress={progress} />
+              <CountdownRing startedAt={offer.startedAt} />
               <View style={styles.offerText}>
                 <DisplayText size={26}>{S.gameOver.continue}</DisplayText>
                 <BodyText size={12} weight="black" color={game.white} align="center">
@@ -227,7 +239,7 @@ export function GameOverPanel(p: GameOverProps) {
         {showOffer && p.canAddTime && (
           <GlossyButton skin="green" size="lg" onPress={p.onAddTime} disabled={p.busy} accessibilityLabel={fmt(S.gameOver.addTime, { n: DIFFICULTY.timeAttack.adBonusSec })}>
             <View style={styles.offerRow}>
-              <CountdownRing progress={progress} />
+              <CountdownRing startedAt={offer.startedAt} />
               <DisplayText size={28}>{fmt(S.gameOver.addTime, { n: DIFFICULTY.timeAttack.adBonusSec })}</DisplayText>
               <Icon name="ad" size={26} color={game.white} detail={game.buttons.green.bottom} outline />
             </View>

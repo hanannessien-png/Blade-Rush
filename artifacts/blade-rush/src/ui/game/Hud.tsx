@@ -1,6 +1,6 @@
 /** In-game HUD: stage progress, balances, score + power meter, knives left, power-ups. */
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useRef } from 'react';
+import React, { memo, useEffect, useRef, useSyncExternalStore } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { game } from '@/constants/colors';
 import type { KnifeSize } from '../../config/difficulty';
@@ -11,7 +11,7 @@ import { CurrencyPill } from '../components/CurrencyPill';
 import { feedbackTap, RoundButton } from '../components/GlossyButton';
 import { Icon, type IconName } from '../components/Icon';
 import { BodyText, DisplayText } from '../components/Typography';
-import { unlockStageOf, type HudState } from './runController';
+import { unlockStageOf, type RunController } from './runController';
 
 export const POWERUP_ICON: Record<PowerUpId, IconName> = {
   slowmo: 'hourglass',
@@ -28,7 +28,7 @@ function stageLabel(mode: ModeId, stage: number): string {
   return fmt(S.game.stage, { n: stage });
 }
 
-function StageDots({ current, isBoss }: { current: number; isBoss: boolean }) {
+const StageDots = memo(function StageDots({ current, isBoss }: { current: number; isBoss: boolean }) {
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -61,83 +61,144 @@ function StageDots({ current, isBoss }: { current: number; isBoss: boolean }) {
       })}
     </View>
   );
-}
+});
 
-interface TopProps {
+/**
+ * Every in-game HUD element. It subscribes to the run controller itself, so a
+ * HUD change never re-renders the game screen, and each part is memoized so a
+ * score change does not redraw the knife column or the power-up rails.
+ */
+export function HudLayer({
+  run,
+  mode,
+  topInset,
+  bottomInset,
+  centerY,
+  overlayOpen,
+  onPause,
+  onUse,
+  onAdPower,
+}: {
+  run: RunController;
   mode: ModeId;
-  hud: HudState;
   topInset: number;
+  bottomInset: number;
+  centerY: number;
+  overlayOpen: boolean;
   onPause(): void;
-}
-
-export function TopHud({ mode, hud, topInset, onPause }: TopProps) {
-  const apples = useGame((s) => s.apples);
-  const gems = useGame((s) => s.gems);
-  const meterP = hud.charges >= 3 ? 1 : hud.threshold > 0 ? hud.meter / hud.threshold : 0;
-  const lowTime = mode === 'timeAttack' && hud.timeLeft <= 10;
+  onUse(id: PowerUpId): void;
+  onAdPower(): void;
+}) {
+  const hud = useSyncExternalStore(run.subscribeHud, run.getHud, run.getHud);
+  if (!hud) return null;
+  const a = hud.active;
+  const activeKey = `${a.slowmo ? 's' : ''}${a.freeze ? 'f' : ''}${a.aim ? 'a' : ''}${a.extra ? 'e' : ''}${a.shield ? 'h' : ''}`;
   return (
-    <View style={[styles.top, { paddingTop: topInset + 6 }]} pointerEvents="box-none">
-      <View style={styles.row} pointerEvents="box-none">
-        <RoundButton icon="pause" size={44} onPress={onPause} accessibilityLabel={S.game.paused} />
-        <View style={styles.center} pointerEvents="none">
-          <DisplayText size={18} stroke={1.5} color={hud.isBoss ? game.danger : game.white}>
-            {hud.isBoss ? S.game.bossFight : stageLabel(mode, hud.stage)}
-          </DisplayText>
-          <StageDots current={hud.stageInWorld} isBoss={hud.isBoss} />
+    <>
+      <View style={[styles.top, { paddingTop: topInset + 6 }]} pointerEvents="box-none">
+        <View style={styles.row} pointerEvents="box-none">
+          <RoundButton icon="pause" size={44} onPress={onPause} accessibilityLabel={S.game.paused} />
+          <StageHeader mode={mode} stage={hud.stage} stageInWorld={hud.stageInWorld} isBoss={hud.isBoss} />
+          <Balances />
         </View>
-        <View style={styles.pills} pointerEvents="none">
-          <CurrencyPill kind="apples" value={apples} compact />
-          <CurrencyPill kind="gems" value={gems} compact />
-        </View>
+        <MeterRow points={hud.points} meter={hud.meter} threshold={hud.threshold} charges={hud.charges} />
+        {mode === 'timeAttack' && <Timer timeLeft={hud.timeLeft} />}
       </View>
-      <View style={styles.meterRow} pointerEvents="none">
-        <BodyText size={15} weight="black" color={game.white} shadow style={styles.points}>
-          {fmt(S.game.points, { n: hud.points.toLocaleString('en-US') })}
-        </BodyText>
-        <View style={styles.meterTrack}>
-          <LinearGradient
-            colors={[game.mint, game.teal]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.meterFill, { width: `${Math.max(0, Math.min(1, meterP)) * 100}%` }]}
-          />
-          <Icon name="bolt" size={14} color={game.white} outline />
-        </View>
-        <View style={[styles.charges, hud.charges > 0 && styles.chargesOn]}>
-          <BodyText size={13} weight="black" color={hud.charges > 0 ? game.outline : game.textMute}>
-            {fmt(S.game.charges, { n: hud.charges })}
-          </BodyText>
-        </View>
-      </View>
-      {mode === 'timeAttack' && (
-        <View style={styles.timer} pointerEvents="none">
-          <Icon name="stopwatch" size={26} color={lowTime ? game.danger : game.white} detail={game.surfaceLo} />
-          <DisplayText size={34} color={lowTime ? game.danger : game.white}>
-            {fmt(S.timeAttack.timeLeft, { t: hud.timeLeft })}
-          </DisplayText>
-        </View>
-      )}
-    </View>
+      <KnifeColumn sizes={hud.sizes} used={hud.used} spares={hud.spares} bottomInset={bottomInset} />
+      <PowerRails
+        stage={hud.stage}
+        charges={hud.charges}
+        usesLeft={hud.usesLeft}
+        activeKey={activeKey}
+        centerY={centerY}
+        onUse={onUse}
+        showAd={!hud.adPowerUsed && hud.stage >= 3 && !overlayOpen}
+        onAdPower={onAdPower}
+      />
+    </>
   );
 }
 
+const StageHeader = memo(function StageHeader({ mode, stage, stageInWorld, isBoss }: { mode: ModeId; stage: number; stageInWorld: number; isBoss: boolean }) {
+  return (
+    <View style={styles.center} pointerEvents="none">
+      <DisplayText size={18} stroke={1.5} color={isBoss ? game.danger : game.white}>
+        {isBoss ? S.game.bossFight : stageLabel(mode, stage)}
+      </DisplayText>
+      <StageDots current={stageInWorld} isBoss={isBoss} />
+    </View>
+  );
+});
+
+const Balances = memo(function Balances() {
+  const apples = useGame((s) => s.apples);
+  const gems = useGame((s) => s.gems);
+  return (
+    <View style={styles.pills} pointerEvents="none">
+      <CurrencyPill kind="apples" value={apples} compact />
+      <CurrencyPill kind="gems" value={gems} compact />
+    </View>
+  );
+});
+
+const MeterRow = memo(function MeterRow({ points, meter, threshold, charges }: { points: number; meter: number; threshold: number; charges: number }) {
+  const meterP = charges >= 3 ? 1 : threshold > 0 ? meter / threshold : 0;
+  return (
+    <View style={styles.meterRow} pointerEvents="none">
+      <BodyText size={15} weight="black" color={game.white} shadow style={styles.points}>
+        {fmt(S.game.points, { n: points.toLocaleString('en-US') })}
+      </BodyText>
+      <View style={styles.meterTrack}>
+        <LinearGradient
+          colors={METER_COLORS}
+          start={H_START}
+          end={H_END}
+          style={[styles.meterFill, { width: `${Math.max(0, Math.min(1, meterP)) * 100}%` }]}
+        />
+        <Icon name="bolt" size={14} color={game.white} outline />
+      </View>
+      <View style={[styles.charges, charges > 0 && styles.chargesOn]}>
+        <BodyText size={13} weight="black" color={charges > 0 ? game.outline : game.textMute}>
+          {fmt(S.game.charges, { n: charges })}
+        </BodyText>
+      </View>
+    </View>
+  );
+});
+
+const METER_COLORS = [game.mint, game.teal] as const;
+const H_START = { x: 0, y: 0 };
+const H_END = { x: 1, y: 0 };
+
+const Timer = memo(function Timer({ timeLeft }: { timeLeft: number }) {
+  const lowTime = timeLeft <= 10;
+  return (
+    <View style={styles.timer} pointerEvents="none">
+      <Icon name="stopwatch" size={26} color={lowTime ? game.danger : game.white} detail={game.surfaceLo} />
+      <DisplayText size={34} color={lowTime ? game.danger : game.white}>
+        {fmt(S.timeAttack.timeLeft, { t: timeLeft })}
+      </DisplayText>
+    </View>
+  );
+});
+
 const SIZE_W: Record<KnifeSize, number> = { small: 0.8, normal: 1, wide: 1.35 };
 
-export function KnifeColumn({ hud, bottomInset }: { hud: HudState; bottomInset: number }) {
+const KnifeColumn = memo(function KnifeColumn({ sizes, used: usedCount, spares, bottomInset }: { sizes: KnifeSize[]; used: number; spares: number; bottomInset: number }) {
   return (
     <View style={[styles.knives, { bottom: bottomInset + 18 }]} pointerEvents="none">
-      {hud.spares > 0 && (
+      {spares > 0 && (
         <View style={styles.spares}>
           <Icon name="extra" size={16} color={game.gem} />
           <BodyText size={13} weight="black" color={game.gem}>
-            {`+${hud.spares}`}
+            {`+${spares}`}
           </BodyText>
         </View>
       )}
       <View style={styles.knifeCol}>
-        {hud.sizes.map((size, i) => {
-          const used = i < hud.used;
-          const next = i === hud.used;
+        {sizes.map((size, i) => {
+          const used = i < usedCount;
+          const next = i === usedCount;
           return (
             <View key={i} style={[styles.knifeItem, { opacity: used ? 0.3 : 1, transform: [{ scaleY: SIZE_W[size] }, { rotate: '90deg' }] }]}>
               <Icon name="knife" size={next ? 28 : 24} color={used ? game.textMute : next ? game.gold : game.white} />
@@ -147,21 +208,23 @@ export function KnifeColumn({ hud, bottomInset }: { hud: HudState; bottomInset: 
       </View>
     </View>
   );
-}
+});
 
 interface RailProps {
-  hud: HudState;
+  stage: number;
+  charges: number;
+  usesLeft: number;
+  activeKey: string;
   centerY: number;
   onUse(id: PowerUpId): void;
   onAdPower(): void;
   showAd: boolean;
 }
 
-function PowerButton({ id, hud, onUse }: { id: PowerUpId; hud: HudState; onUse(id: PowerUpId): void }) {
+const ACTIVE_CODE: Record<PowerUpId, string> = { slowmo: 's', freeze: 'f', aim: 'a', extra: 'e', shield: 'h', sweep: '-' };
+
+const PowerButton = memo(function PowerButton({ id, locked, active, usable, onUse }: { id: PowerUpId; locked: boolean; active: boolean; usable: boolean; onUse(id: PowerUpId): void }) {
   const unlockAt = unlockStageOf(id);
-  const locked = hud.stage < unlockAt;
-  const active = hud.active[id];
-  const usable = !locked && hud.charges > 0 && hud.usesLeft > 0;
   const skin = locked ? game.buttons.disabled : usable ? game.buttons.secondary : game.buttons.dark;
   return (
     <Pressable
@@ -190,23 +253,32 @@ function PowerButton({ id, hud, onUse }: { id: PowerUpId; hud: HudState; onUse(i
       </View>
     </Pressable>
   );
-}
+});
 
-export function PowerRails({ hud, centerY, onUse, onAdPower, showAd }: RailProps) {
+const PowerRails = memo(function PowerRails({ stage, charges, usesLeft, activeKey, centerY, onUse, onAdPower, showAd }: RailProps) {
+  const button = (id: PowerUpId) => {
+    const locked = stage < unlockStageOf(id);
+    return (
+      <PowerButton
+        key={id}
+        id={id}
+        locked={locked}
+        active={activeKey.includes(ACTIVE_CODE[id])}
+        usable={!locked && charges > 0 && usesLeft > 0}
+        onUse={onUse}
+      />
+    );
+  };
   const left = POWERUP_ORDER.slice(0, 3);
   const right = POWERUP_ORDER.slice(3);
   const top = centerY - 95;
   return (
     <>
       <View style={[styles.rail, styles.railLeft, { top }]} pointerEvents="box-none">
-        {left.map((id) => (
-          <PowerButton key={id} id={id} hud={hud} onUse={onUse} />
-        ))}
+        {left.map(button)}
       </View>
       <View style={[styles.rail, styles.railRight, { top }]} pointerEvents="box-none">
-        {right.map((id) => (
-          <PowerButton key={id} id={id} hud={hud} onUse={onUse} />
-        ))}
+        {right.map(button)}
         {showAd && (
           <Pressable
             accessibilityRole="button"
@@ -225,7 +297,7 @@ export function PowerRails({ hud, centerY, onUse, onAdPower, showAd }: RailProps
       </View>
     </>
   );
-}
+});
 
 const styles = StyleSheet.create({
   top: {

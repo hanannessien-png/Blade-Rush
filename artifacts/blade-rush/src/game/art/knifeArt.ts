@@ -19,7 +19,7 @@ function bladePath(style: KnifeStyle): SkPath {
   const L = style.bladeLen;
   const W = style.bladeWidth;
   const h = W / 2;
-  const p = Skia.Path.Make();
+  const p = Skia.PathBuilder.Make();
   switch (style.blade) {
     case 'classic':
       p.moveTo(0, 0);
@@ -158,7 +158,7 @@ function bladePath(style: KnifeStyle): SkPath {
       p.cubicTo(W * 0.3, L * 0.7, W * 0.42, L * 0.26, 0, 0);
       break;
   }
-  return p;
+  return p.build();
 }
 
 function drawPattern(c: SkCanvas, style: KnifeStyle, blade: SkPath): void {
@@ -174,10 +174,10 @@ function drawPattern(c: SkCanvas, style: KnifeStyle, blade: SkPath): void {
       const s = stroke(color, 0.7, 0.55);
       for (let i = 0; i < 9; i++) {
         const y0 = (L / 9) * i + 3;
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(-W, y0);
         p.cubicTo(-W * 0.3, y0 - 4, W * 0.2, y0 + 5, W, y0 - 2);
-        c.drawPath(p, s);
+        c.drawPath(p.build(), s);
       }
       break;
     }
@@ -206,7 +206,7 @@ function drawPattern(c: SkCanvas, style: KnifeStyle, blade: SkPath): void {
       const s = stroke(color, 0.9, 0.95);
       for (let i = 0; i < 4; i++) {
         const y = L * 0.3 + i * L * 0.16;
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(-2, y - 2);
         p.lineTo(2, y);
         p.lineTo(-2, y + 2);
@@ -214,8 +214,8 @@ function drawPattern(c: SkCanvas, style: KnifeStyle, blade: SkPath): void {
           p.moveTo(2, y - 3);
           p.lineTo(2, y + 3);
         }
-        c.drawPath(p, glow);
-        c.drawPath(p, s);
+        c.drawPath(p.build(), glow);
+        c.drawPath(p.build(), s);
       }
       break;
     }
@@ -245,10 +245,10 @@ function drawPattern(c: SkCanvas, style: KnifeStyle, blade: SkPath): void {
       const s = stroke(color, 0.9, 0.6);
       for (let i = 0; i < 4; i++) {
         const y = L * 0.25 + i * L * 0.18;
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(-W * 0.4, y);
         p.cubicTo(-W * 0.1, y - 5, W * 0.1, y + 5, W * 0.4, y);
-        c.drawPath(p, s);
+        c.drawPath(p.build(), s);
       }
       break;
     }
@@ -293,7 +293,7 @@ function drawGuard(c: SkCanvas, style: KnifeStyle): void {
       break;
     }
     case 'winged': {
-      const p = Skia.Path.Make();
+      const p = Skia.PathBuilder.Make();
       p.moveTo(-W / 2 - 2, y + GUARD_H);
       p.quadTo(-W / 2 - 10, y + GUARD_H, -W / 2 - 11, y - 5);
       p.quadTo(-W / 2 - 4, y - 1, -W / 2, y);
@@ -301,8 +301,8 @@ function drawGuard(c: SkCanvas, style: KnifeStyle): void {
       p.quadTo(W / 2 + 4, y - 1, W / 2 + 11, y - 5);
       p.quadTo(W / 2 + 10, y + GUARD_H, W / 2 + 2, y + GUARD_H);
       p.close();
-      c.drawPath(p, g);
-      c.drawPath(p, edge);
+      c.drawPath(p.build(), g);
+      c.drawPath(p.build(), edge);
       break;
     }
     case 'disc':
@@ -366,29 +366,29 @@ function drawHandle(c: SkCanvas, style: KnifeStyle): number {
       break;
     }
     case 'ornate': {
-      const p = Skia.Path.Make();
+      const p = Skia.PathBuilder.Make();
       p.moveTo(-w / 2 + 1, y0);
       p.cubicTo(-w / 2 - 2, y0 + L * 0.35, -w / 2 - 2, y0 + L * 0.65, -w / 2 + 1, y0 + L);
       p.lineTo(w / 2 - 1, y0 + L);
       p.cubicTo(w / 2 + 2, y0 + L * 0.65, w / 2 + 2, y0 + L * 0.35, w / 2 - 1, y0);
       p.close();
-      c.drawPath(p, g);
+      c.drawPath(p.build(), g);
       const band = linear(-w / 2, 0, w / 2, 0, [style.guardColors[1], style.guardColors[0], style.guardColors[1]]);
       c.drawRect(Skia.XYWHRect(-w / 2 - 1, y0 + 1, w + 2, 2.5), band);
       c.drawRect(Skia.XYWHRect(-w / 2 - 1.5, y0 + L / 2 - 1.2, w + 3, 2.4), band);
       c.drawRect(Skia.XYWHRect(-w / 2 - 1, y0 + L - 3.5, w + 2, 2.5), band);
-      c.drawPath(p, outline);
+      c.drawPath(p.build(), outline);
       break;
     }
     case 'grip': {
-      const p = Skia.Path.Make();
+      const p = Skia.PathBuilder.Make();
       p.moveTo(-w / 2, y0);
       for (let i = 0; i < 4; i++) p.quadTo(-w / 2 - 1.8, y0 + i * 6.5 + 3.25, -w / 2, y0 + (i + 1) * 6.5);
       p.lineTo(w / 2, y0 + L);
       p.lineTo(w / 2, y0);
       p.close();
-      c.drawPath(p, g);
-      c.drawPath(p, outline);
+      c.drawPath(p.build(), g);
+      c.drawPath(p.build(), outline);
       break;
     }
     case 'bone': {
@@ -442,8 +442,7 @@ export function drawKnife(c: SkCanvas, style: KnifeStyle, withShadow = true): vo
   const total = knifeLength(style);
 
   if (withShadow) {
-    const sil = blade.copy();
-    sil.addRRect(rrect(-4, L, 8, total - L, 3));
+    const sil = Skia.PathBuilder.Make().addPath(blade).addRRect(rrect(-4, L, 8, total - L, 3)).build();
     shadow(c, sil, 2.5, 3.5, 2.2, 0.38);
   }
 

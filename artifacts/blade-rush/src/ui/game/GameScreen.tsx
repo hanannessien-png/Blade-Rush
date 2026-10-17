@@ -18,10 +18,10 @@ import { BannerSlot } from '../components/BannerSlot';
 import { Confetti } from '../components/Confetti';
 import { useScreenInsets } from '../components/Screen';
 import { celebrateReward, watchForReward } from '../rewards';
-import { FloatLayer, Popup, StageBanner, TutorialHand, WorldFade, type BannerItem, type FloatItem, type PopupItem } from './Effects';
-import { KnifeColumn, PowerRails, TopHud } from './Hud';
+import { FxLayer, StageBanner, TutorialHand, WorldFade, type BannerItem, type FxHandle } from './Effects';
+import { HudLayer } from './Hud';
 import { AdPowerPicker, BossDefeatedPanel, DailyResultsPanel, GameOverPanel, PauseMenu, QuitConfirm, VictoryPanel } from './Overlays';
-import { RunController, type HudState, type Overlay } from './runController';
+import { RunController, type Overlay } from './runController';
 
 function emptyPicture(): SkPicture {
   const rec = Skia.PictureRecorder();
@@ -49,10 +49,8 @@ function Run({ mode, devStage, onRetry }: { mode: ModeId; devStage?: number; onR
   const adShowing = useAdStatus((s) => s.fullscreenShowing);
 
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-  const [hud, setHud] = useState<HudState | null>(null);
   const [overlay, setOverlayState] = useState<Overlay>(null);
-  const [popup, setPopup] = useState<PopupItem | null>(null);
-  const [floats, setFloats] = useState<FloatItem[]>([]);
+  const fx = useRef<FxHandle>(null);
   const [banner, setBanner] = useState<BannerItem | null>(null);
   const [worldBanner, setWorldBanner] = useState<BannerItem | null>(null);
   const [fadeKey, setFadeKey] = useState(0);
@@ -68,13 +66,12 @@ function Run({ mode, devStage, onRetry }: { mode: ModeId; devStage?: number; onR
   const run = useMemo(
     () =>
       new RunController(mode, {
-        hud: setHud,
         overlay: (o) => {
           setOverlayState(o);
           if (o === 'victory' || o === 'daily' || o === 'boss') setConfetti((c) => c + 1);
         },
-        popup: (text, color) => setPopup({ id: nextFxId++, text, color }),
-        float: (x, y, text, kind) => setFloats((f) => [...f.slice(-7), { id: nextFxId++, x, y, text, kind }]),
+        popup: (text, color) => fx.current?.popup(text, color),
+        float: (x, y, text, kind) => fx.current?.float(x, y, text, kind),
         worldTitle: (index, number) => {
           setFadeKey((k) => k + 1);
           setWorldBanner({ id: nextFxId++, kind: 'world', title: fmt(S.game.world, { n: number }), sub: S.worlds[WORLDS[index]?.id ?? ''] ?? '' });
@@ -173,9 +170,12 @@ function Run({ mode, devStage, onRetry }: { mode: ModeId; devStage?: number; onR
   );
 
   const onUsePower = useCallback((id: PowerUpId) => run.usePowerUp(id), [run]);
+  const onPause = useCallback(() => {
+    if (run.overlay === null) setOverlay('pause');
+  }, [run, setOverlay]);
+  const onAdPower = useCallback(() => setOverlay('adPower'), [setOverlay]);
 
   const centerY = size ? run.engine.cy * run.scale : 300;
-  const showAdPower = !!hud && !hud.adPowerUsed && hud.stage >= 3 && overlay === null;
 
   return (
     <View style={styles.root} onLayout={onLayout}>
@@ -195,18 +195,23 @@ function Run({ mode, devStage, onRetry }: { mode: ModeId; devStage?: number; onR
         accessibilityLabel={S.game.tapToThrow}
       />
 
-      <FloatLayer items={floats} onDone={(id) => setFloats((f) => f.filter((x) => x.id !== id))} />
-      <Popup item={popup} y={centerY + (size ? run.engine.radius * run.scale : 80) + 30} />
+      <FxLayer ref={fx} popupY={centerY + (size ? run.engine.radius * run.scale : 80) + 30} />
       <StageBanner item={worldBanner} y={hudTop + 4} />
       <StageBanner item={banner} y={centerY - 40} />
       {tutorial > 0 && overlay === null && <TutorialHand throwsLeft={tutorial} y={centerY + (size ? run.engine.radius * run.scale : 80) + 70} />}
 
-      {hud && (
-        <>
-          <TopHud mode={mode} hud={hud} topInset={insets.top} onPause={() => run.overlay === null && setOverlay('pause')} />
-          <KnifeColumn hud={hud} bottomInset={insets.bottom} />
-          <PowerRails hud={hud} centerY={centerY} onUse={onUsePower} showAd={showAdPower} onAdPower={() => setOverlay('adPower')} />
-        </>
+      {size && (
+        <HudLayer
+          run={run}
+          mode={mode}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+          centerY={centerY}
+          overlayOpen={overlay !== null}
+          onPause={onPause}
+          onUse={onUsePower}
+          onAdPower={onAdPower}
+        />
       )}
 
       <PauseMenu visible={overlay === 'pause'} onResume={() => setOverlay(null)} onHome={() => setOverlay('quit')} />
@@ -220,7 +225,7 @@ function Run({ mode, devStage, onRetry }: { mode: ModeId; devStage?: number; onR
       />
       <AdPowerPicker
         visible={overlay === 'adPower'}
-        stage={hud?.stage ?? 1}
+        stage={run.stage}
         busy={busy}
         onClose={() => setOverlay(null)}
         onPick={(id) =>

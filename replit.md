@@ -33,7 +33,9 @@ An Android-only, offline, portrait knife-throwing arcade game (package `com.apex
 - The engine is pure TypeScript with no rendering, so it is unit-tested; the run controller owns mode rules, scoring and ad timing.
 - The world is redrawn each frame into a Skia picture handed to the canvas through a shared value; menus use native views.
 - On web, Skia's CanvasKit must load before any module that touches `Skia` is imported, so `index.web.js` loads CanvasKit and then dynamically imports the router entry. Never call Skia at module top level.
-- Knife previews are rendered once to PNG data URIs and shown as images so long store grids stay cheap.
+- Knife previews are pre-rendered PNGs in `assets/knives` (mapped in `src/data/knifeImages.ts`); rendering them at runtime froze the first Store open. If knife art changes, re-export them with `__knifeExport()` in the web preview console.
+- Performance rules for the play screen: the HUD subscribes to the run controller (`useSyncExternalStore`), and floats/popups live behind an imperative handle, so the game screen does not re-render during play. Do not allocate Skia paints, shaders, paths or colours per frame in the renderer; cache them or record a picture (boss faces are cached per mood).
+- Build paths with `Skia.PathBuilder` and `.build()`; the mutable `SkPath` methods are deprecated and print warnings.
 
 ## Product
 

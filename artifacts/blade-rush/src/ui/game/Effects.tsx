@@ -1,5 +1,5 @@
 /** Transient in-game effects: popups, floating numbers, banners and the tutorial hand. */
-import React, { useEffect, useRef } from 'react';
+import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { game } from '@/constants/colors';
 import { S } from '../../strings';
@@ -14,7 +14,7 @@ export interface PopupItem {
   color: string;
 }
 
-export function Popup({ item, y }: { item: PopupItem | null; y: number }) {
+export const Popup = memo(function Popup({ item, y }: { item: PopupItem | null; y: number }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!item) return;
@@ -36,7 +36,7 @@ export function Popup({ item, y }: { item: PopupItem | null; y: number }) {
       </DisplayText>
     </Animated.View>
   );
-}
+});
 
 export interface FloatItem {
   id: number;
@@ -46,11 +46,18 @@ export interface FloatItem {
   kind: FloatKind;
 }
 
-function FloatText({ item, onDone }: { item: FloatItem; onDone(id: number): void }) {
+const FloatText = memo(function FloatText({ item, onDone }: { item: FloatItem; onDone(id: number): void }) {
   const v = useRef(new Animated.Value(0)).current;
+  const done = useRef(onDone);
+  done.current = onDone;
+  // Runs once per float; parent re-renders must never restart (or cut short) the animation.
   useEffect(() => {
-    Animated.timing(v, { toValue: 1, duration: 950, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => onDone(item.id));
-  }, [v, item.id, onDone]);
+    const anim = Animated.timing(v, { toValue: 1, duration: 950, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    anim.start(({ finished }) => {
+      if (finished) done.current(item.id);
+    });
+    return () => anim.stop();
+  }, [v, item.id]);
   const translateY = v.interpolate({ inputRange: [0, 1], outputRange: [0, -70] });
   const opacity = v.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] });
   const scale = v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0.6, 1.15, 1] });
@@ -65,9 +72,9 @@ function FloatText({ item, onDone }: { item: FloatItem; onDone(id: number): void
       </DisplayText>
     </Animated.View>
   );
-}
+});
 
-export function FloatLayer({ items, onDone }: { items: FloatItem[]; onDone(id: number): void }) {
+export const FloatLayer = memo(function FloatLayer({ items, onDone }: { items: FloatItem[]; onDone(id: number): void }) {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {items.map((f) => (
@@ -75,7 +82,40 @@ export function FloatLayer({ items, onDone }: { items: FloatItem[]; onDone(id: n
       ))}
     </View>
   );
+});
+
+let nextFxId = 1;
+
+export interface FxHandle {
+  float(x: number, y: number, text: string, kind: FloatKind): void;
+  popup(text: string, color: string): void;
 }
+
+/**
+ * Floating numbers and the centre popup. Owns its own state behind an
+ * imperative handle so a hit never re-renders the game screen.
+ */
+export const FxLayer = memo(
+  forwardRef<FxHandle, { popupY: number }>(function FxLayer({ popupY }, ref) {
+    const [floats, setFloats] = useState<FloatItem[]>([]);
+    const [popup, setPopup] = useState<PopupItem | null>(null);
+    useImperativeHandle(
+      ref,
+      () => ({
+        float: (x, y, text, kind) => setFloats((f) => [...f.slice(-7), { id: nextFxId++, x, y, text, kind }]),
+        popup: (text, color) => setPopup({ id: nextFxId++, text, color }),
+      }),
+      [],
+    );
+    const onDone = useCallback((id: number) => setFloats((f) => f.filter((x) => x.id !== id)), []);
+    return (
+      <>
+        <FloatLayer items={floats} onDone={onDone} />
+        <Popup item={popup} y={popupY} />
+      </>
+    );
+  }),
+);
 
 export interface BannerItem {
   id: number;
@@ -85,7 +125,7 @@ export interface BannerItem {
 }
 
 /** Boss intro (big, centered) and world title (top) banners. */
-export function StageBanner({ item, y }: { item: BannerItem | null; y: number }) {
+export const StageBanner = memo(function StageBanner({ item, y }: { item: BannerItem | null; y: number }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!item) return;
@@ -116,10 +156,10 @@ export function StageBanner({ item, y }: { item: BannerItem | null; y: number })
       </View>
     </Animated.View>
   );
-}
+});
 
 /** Quick dip-to-dark when the world changes. */
-export function WorldFade({ trigger }: { trigger: number }) {
+export const WorldFade = memo(function WorldFade({ trigger }: { trigger: number }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (trigger <= 1) return;
@@ -127,9 +167,9 @@ export function WorldFade({ trigger }: { trigger: number }) {
     Animated.timing(v, { toValue: 0, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
   }, [trigger, v]);
   return <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.fade, { opacity: v }]} />;
-}
+});
 
-export function TutorialHand({ throwsLeft, y }: { throwsLeft: number; y: number }) {
+export const TutorialHand = memo(function TutorialHand({ throwsLeft, y }: { throwsLeft: number; y: number }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -157,7 +197,7 @@ export function TutorialHand({ throwsLeft, y }: { throwsLeft: number; y: number 
       </Animated.View>
     </View>
   );
-}
+});
 
 function HandGlyph() {
   return (

@@ -53,7 +53,7 @@ class AudioService {
   private musicEnabled = true;
   private suspended = false;
   private ready = false;
-  private pools = new Map<Sfx, { players: AudioPlayer[]; next: number }>();
+  private pools = new Map<Sfx, { players: AudioPlayer[]; rates: number[]; next: number }>();
   private music: AudioPlayer | null = null;
   private musicTrack: MusicTrack | null = null;
   private wantedTrack: MusicTrack | null = null;
@@ -74,7 +74,7 @@ class AudioService {
           console.warn('[audio] sfx load failed', key, err);
         }
       }
-      this.pools.set(key, { players, next: 0 });
+      this.pools.set(key, { players, rates: players.map(() => 1), next: 0 });
     }
   }
 
@@ -98,12 +98,17 @@ class AudioService {
     if (!this.sfxEnabled || this.suspended || !this.ready) return;
     const pool = this.pools.get(key);
     if (!pool || pool.players.length === 0) return;
-    const p = pool.players[pool.next];
-    pool.next = (pool.next + 1) % pool.players.length;
+    const i = pool.next;
+    const p = pool.players[i];
+    pool.next = (i + 1) % pool.players.length;
     try {
-      if (rate !== 1) p.setPlaybackRate?.(rate);
+      // Pooled players keep their last rate, so reset it whenever it differs.
+      if (pool.rates[i] !== rate) {
+        p.setPlaybackRate?.(rate);
+        pool.rates[i] = rate;
+      }
       void p.seekTo(0).catch(() => {});
-      p.play();
+      quiet(p.play());
     } catch {
       // Audio must never break gameplay.
     }
@@ -128,7 +133,7 @@ class AudioService {
     }
     const track = this.wantedTrack!;
     if (this.music && this.musicTrack === track) {
-      if (!this.music.playing) this.music.play();
+      if (!this.music.playing) quiet(this.music.play());
       return;
     }
     this.crossfadeTo(track);
@@ -145,7 +150,7 @@ class AudioService {
     }
     next.loop = true;
     next.volume = 0;
-    next.play();
+    quiet(next.play());
     this.music = next;
     this.musicTrack = track;
     if (this.fadeTimer) clearInterval(this.fadeTimer);
@@ -169,3 +174,8 @@ class AudioService {
 }
 
 export const audio = new AudioService();
+
+/** Some platforms (the web preview) return a promise from play() that rejects when interrupted; that is harmless. */
+function quiet(result: unknown): void {
+  if (result && typeof (result as Promise<void>).catch === 'function') (result as Promise<void>).catch(() => {});
+}

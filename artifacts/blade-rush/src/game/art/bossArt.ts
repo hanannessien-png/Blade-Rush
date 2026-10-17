@@ -53,17 +53,17 @@ function drawBody(c: SkCanvas, boss: BossDef): void {
       for (const x of lobes) oval(c, x, 0, 34, R - Math.abs(x) * 0.25, linear(x - 34, 0, x + 34, 0, [dark, base, light, base, dark], [0, 0.25, 0.5, 0.75, 1]));
       const sep = stroke(darken(dark, 0.2), 2, 0.5);
       for (const x of [-45, -15, 15, 45]) {
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(x, -R + 18);
         p.quadTo(x * 1.25, 0, x, R - 16);
-        c.drawPath(p, sep);
+        c.drawPath(p.build(), sep);
       }
       c.drawPath(poly([[-8, -R + 8], [8, -R + 8], [12, -R - 20], [2, -R - 24]]), linear(-8, 0, 12, 0, [darken(accent, 0.3), accent, darken(accent, 0.2)]));
-      const leaf = Skia.Path.Make();
+      const leaf = Skia.PathBuilder.Make();
       leaf.moveTo(8, -R - 6);
       leaf.quadTo(40, -R - 34, 52, -R - 6);
       leaf.quadTo(30, -R + 4, 8, -R - 6);
-      c.drawPath(leaf, fill(accent));
+      c.drawPath(leaf.build(), fill(accent));
       break;
     }
     case 'crystal': {
@@ -115,7 +115,7 @@ function drawBody(c: SkCanvas, boss: BossDef): void {
       break;
     }
     case 'gear': {
-      const p = Skia.Path.Make();
+      const p = Skia.PathBuilder.Make();
       const teeth = 12;
       for (let i = 0; i < teeth; i++) {
         const a0 = (i / teeth) * Math.PI * 2;
@@ -134,8 +134,8 @@ function drawBody(c: SkCanvas, boss: BossDef): void {
         });
       }
       p.close();
-      c.drawPath(p, radial(-30, -30, R * 1.5, [light, base, dark], [0, 0.5, 1]));
-      c.drawPath(p, stroke(darken(dark, 0.3), 2, 0.8));
+      c.drawPath(p.build(), radial(-30, -30, R * 1.5, [light, base, dark], [0, 0.5, 1]));
+      c.drawPath(p.build(), stroke(darken(dark, 0.3), 2, 0.8));
       c.drawCircle(0, 0, R - 30, stroke(dark, 4, 0.6));
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2 + 0.5;
@@ -151,12 +151,12 @@ function drawBody(c: SkCanvas, boss: BossDef): void {
       const core = stroke(accent, 2.4, 1);
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2 + r() * 0.3;
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(Math.cos(a) * 20, Math.sin(a) * 20);
         p.lineTo(Math.cos(a + 0.2) * 55, Math.sin(a + 0.2) * 55);
         p.lineTo(Math.cos(a - 0.05) * 96, Math.sin(a - 0.05) * 96);
-        c.drawPath(p, glow);
-        c.drawPath(p, core);
+        c.drawPath(p.build(), glow);
+        c.drawPath(p.build(), core);
       }
       c.drawCircle(0, 0, 34, blurred(fill(light, 0.5), 10));
       break;
@@ -204,10 +204,10 @@ function drawBody(c: SkCanvas, boss: BossDef): void {
       ball(c, base, light, dark);
       const rib = stroke(dark, 3, 0.5);
       for (const x of [-60, -30, 0, 30, 60]) {
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(x * 0.6, -R + 6);
         p.quadTo(x * 1.25, 0, x * 0.6, R - 6);
-        c.drawPath(p, rib);
+        c.drawPath(p.build(), rib);
       }
       const spine = stroke('#FFF6D6', 1.4, 0.95);
       for (let i = 0; i < 26; i++) {
@@ -261,12 +261,12 @@ function drawBody(c: SkCanvas, boss: BossDef): void {
       const line = stroke(accent, 1.8, 1);
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2;
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(Math.cos(a) * 40, Math.sin(a) * 40);
         p.lineTo(Math.cos(a) * 64, Math.sin(a) * 64);
         p.lineTo(Math.cos(a + 0.25) * 86, Math.sin(a + 0.25) * 86);
-        c.drawPath(p, glow);
-        c.drawPath(p, line);
+        c.drawPath(p.build(), glow);
+        c.drawPath(p.build(), line);
         c.drawCircle(Math.cos(a + 0.25) * 86, Math.sin(a + 0.25) * 86, 3, fill(accent));
       }
       c.drawCircle(0, 0, R - 2, stroke(accent, 3, 0.8));
@@ -319,12 +319,12 @@ function drawBody(c: SkCanvas, boss: BossDef): void {
       c.clipPath(circlePath(0, 0, R), ClipOp.Intersect, true);
       for (let i = 0; i < 10; i++) {
         const a0 = (i / 10) * Math.PI * 2;
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(0, 0);
         p.cubicTo(Math.cos(a0 + 0.8) * 50, Math.sin(a0 + 0.8) * 50, Math.cos(a0 + 0.3) * 90, Math.sin(a0 + 0.3) * 90, Math.cos(a0) * 130, Math.sin(a0) * 130);
         p.lineTo(Math.cos(a0 + 0.32) * 130, Math.sin(a0 + 0.32) * 130);
         p.cubicTo(Math.cos(a0 + 0.6) * 90, Math.sin(a0 + 0.6) * 90, Math.cos(a0 + 1.1) * 50, Math.sin(a0 + 1.1) * 50, 0, 0);
-        c.drawPath(p, fill(i % 2 ? base : light));
+        c.drawPath(p.build(), fill(i % 2 ? base : light));
       }
       c.restore();
       c.drawCircle(0, 0, R - 2, stroke(dark, 4, 0.8));
@@ -430,11 +430,27 @@ export interface FaceState {
   clock: number;
 }
 
-/** Draw the boss face. The canvas is already at the boss centre in unit space, un-rotated. */
+type FaceMood = 'idle' | 'blink' | 'hit';
+const faceCache = new Map<string, SkPicture>();
+
+/**
+ * Draw the boss face. The canvas is already at the boss centre in unit space.
+ * The face only has three looks, so each is recorded once and replayed;
+ * building paints and paths every frame caused garbage-collection hitches.
+ */
 export function drawBossFace(c: SkCanvas, boss: BossDef, s: FaceState): void {
+  const mood: FaceMood = s.hitT < 0.28 ? 'hit' : s.clock % 3.4 < 0.12 ? 'blink' : 'idle';
+  const key = `${boss.id}:${mood}`;
+  let pic = faceCache.get(key);
+  if (!pic) {
+    pic = record(320, 320, (rc) => paintBossFace(rc, boss, mood === 'hit', mood === 'blink'), -160, -160);
+    faceCache.set(key, pic);
+  }
+  c.drawPicture(pic);
+}
+
+function paintBossFace(c: SkCanvas, boss: BossDef, hit: boolean, blink: boolean): void {
   const f = FACE[boss.id] ?? FACE.pumpkin;
-  const hit = s.hitT < 0.28;
-  const blink = (s.clock % 3.4) < 0.12;
   const ex = f.spread;
   const ey = f.y;
   const glowCol = f.color ?? boss.colors[3];
@@ -468,10 +484,10 @@ export function drawBossFace(c: SkCanvas, boss: BossDef, s: FaceState): void {
       oval(c, 0, my + 2, 10, 12, fill('#5A1020'));
       oval(c, 0, my + 7, 6, 4, fill('#FF6B81'));
     } else {
-      const m = Skia.Path.Make();
+      const m = Skia.PathBuilder.Make();
       m.moveTo(-16, my);
       m.quadTo(0, my + 16, 16, my);
-      c.drawPath(m, stroke(ink, 4.5));
+      c.drawPath(m.build(), stroke(ink, 4.5));
     }
     if (f.style === 'cute') {
       c.drawCircle(-ex - 14, ey + 20, 8, blurred(fill('#FF7A9A', 0.45), 3));
@@ -489,9 +505,9 @@ export function drawBossFace(c: SkCanvas, boss: BossDef, s: FaceState): void {
         f.style === 'carved' && !hit && !blink
           ? poly([[sx * ex - 12, ey + 8], [sx * ex + 12, ey + 8], [sx * ex + sx * 2, ey - 12]])
           : (() => {
-              const p = Skia.Path.Make();
+              const p = Skia.PathBuilder.Make();
               p.addRRect(Skia.RRectXY(Skia.XYWHRect(sx * ex - 13, ey - eyeH / 2, 26, eyeH), 3, 3));
-              return p;
+              return p.build();
             })();
       c.drawPath(eye, fill('#1B0A06'));
       c.drawPath(eye, glow);
@@ -499,7 +515,7 @@ export function drawBossFace(c: SkCanvas, boss: BossDef, s: FaceState): void {
       if (f.style === 'glow' && !hit) c.drawLine(sx * ex - 14, ey - 12 + (sx > 0 ? 0 : 4), sx * ex + 14, ey - 12 + (sx > 0 ? 4 : 0), stroke(ink, 4));
     }
     const my = ey + 34;
-    const mouth = Skia.Path.Make();
+    const mouth = Skia.PathBuilder.Make();
     if (hit) {
       oval(c, 0, my, 12, 10, fill('#1B0A06'));
       oval(c, 0, my, 12, 10, blurred(stroke(glowCol, 3, 0.8), 2));
@@ -509,14 +525,14 @@ export function drawBossFace(c: SkCanvas, boss: BossDef, s: FaceState): void {
       for (let i = 0; i <= teeth; i++) mouth.lineTo(-28 + (56 / teeth) * i, my + (i % 2 ? 6 : -2));
       mouth.lineTo(28, my - 6);
       mouth.quadTo(0, my + 22, -28, my - 6);
-      c.drawPath(mouth, fill('#1B0A06'));
-      c.drawPath(mouth, glow);
-      c.drawPath(mouth, core);
+      c.drawPath(mouth.build(), fill('#1B0A06'));
+      c.drawPath(mouth.build(), glow);
+      c.drawPath(mouth.build(), core);
     } else {
       mouth.moveTo(-18, my);
       mouth.lineTo(18, my);
-      c.drawPath(mouth, blurred(stroke(glowCol, 5, 0.7), 3));
-      c.drawPath(mouth, stroke(lighten(glowCol, 0.4), 2.4));
+      c.drawPath(mouth.build(), blurred(stroke(glowCol, 5, 0.7), 3));
+      c.drawPath(mouth.build(), stroke(lighten(glowCol, 0.4), 2.4));
     }
     return;
   }
@@ -538,6 +554,7 @@ export function drawBossFace(c: SkCanvas, boss: BossDef, s: FaceState): void {
 
 export function clearBossCaches(): void {
   bodyCache.clear();
+  faceCache.clear();
 }
 
 export { withAlpha };

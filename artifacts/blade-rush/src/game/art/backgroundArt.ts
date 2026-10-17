@@ -20,7 +20,7 @@ export interface WorldPalette {
 
 function hills(c: SkCanvas, y: number, amp: number, color: string, seed: number, h: number): void {
   const r = artRand(seed);
-  const p = Skia.Path.Make();
+  const p = Skia.PathBuilder.Make();
   p.moveTo(-BG_MARGIN, h);
   p.lineTo(-BG_MARGIN, y);
   for (let x = -BG_MARGIN; x <= W + BG_MARGIN; x += 40) {
@@ -28,7 +28,7 @@ function hills(c: SkCanvas, y: number, amp: number, color: string, seed: number,
   }
   p.lineTo(W + BG_MARGIN, h);
   p.close();
-  c.drawPath(p, fill(color));
+  c.drawPath(p.build(), fill(color));
 }
 
 function drawFar(c: SkCanvas, kind: Silhouette, color: string, h: number, glow: string): void {
@@ -212,13 +212,13 @@ function drawNear(c: SkCanvas, kind: Silhouette, color: string, h: number): void
       break;
     case 'cove':
       for (const x of [10, 350]) {
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(x - 6, h);
         p.quadTo(x + (x < 100 ? 20 : -20), h * 0.7, x + (x < 100 ? 10 : -10), h * 0.55);
         p.lineTo(x + (x < 100 ? 18 : -18), h * 0.55);
         p.quadTo(x + (x < 100 ? 30 : -30), h * 0.7, x + 8, h);
         p.close();
-        c.drawPath(p, col);
+        c.drawPath(p.build(), col);
         for (let i = 0; i < 5; i++) {
           const a = -Math.PI + (i / 4) * Math.PI;
           const cx = x + (x < 100 ? 14 : -14);
@@ -239,12 +239,12 @@ function drawNear(c: SkCanvas, kind: Silhouette, color: string, h: number): void
       hills(c, base, 24, color, 31, h);
       for (const x of [20, 340]) {
         const s = stroke('#FFFFFF', 9);
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(x, h);
         p.lineTo(x, base - 70);
         p.quadTo(x, base - 100, x + (x < 100 ? 22 : -22), base - 100);
-        c.drawPath(p, s);
-        c.drawPath(p, stroke('#E8282B', 9, 0.9));
+        c.drawPath(p.build(), s);
+        c.drawPath(p.build(), stroke('#E8282B', 9, 0.9));
       }
       break;
     case 'temple':
@@ -253,11 +253,11 @@ function drawNear(c: SkCanvas, kind: Silhouette, color: string, h: number): void
         c.drawRect(Skia.XYWHRect(x - 20, h * 0.4, 40, 10), col);
       }
       for (let i = 0; i < 8; i++) {
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         const x = r() * W;
         p.moveTo(x, -4);
         p.quadTo(x + 14, 40, x - 4, 80 + r() * 60);
-        c.drawPath(p, stroke(color, 4));
+        c.drawPath(p.build(), stroke(color, 4));
       }
       hills(c, base, 10, color, 33, h);
       break;

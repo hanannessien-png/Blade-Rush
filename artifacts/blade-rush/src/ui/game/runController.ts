@@ -42,7 +42,6 @@ export interface HudState {
   adPowerUsed: boolean;
   active: Record<PowerUpId, boolean>;
   timeLeft: number;
-  canThrow: boolean;
 }
 
 export interface BossResult {
@@ -56,7 +55,6 @@ export interface BossResult {
 export type FloatKind = 'apple' | 'gem' | 'golden' | 'time' | 'penalty';
 
 export interface RunUi {
-  hud(h: HudState): void;
   overlay(o: Overlay): void;
   popup(text: string, color: string): void;
   float(x: number, y: number, text: string, kind: FloatKind): void;
@@ -108,6 +106,18 @@ export class RunController {
   private blockUntil = 0;
   private tutorialLeft: number;
   private lastHud = '';
+  /** Latest HUD snapshot; HUD components subscribe so the screen itself never re-renders per frame. */
+  hudState: HudState | null = null;
+  private hudListeners = new Set<() => void>();
+
+  subscribeHud = (fn: () => void): (() => void) => {
+    this.hudListeners.add(fn);
+    return () => {
+      this.hudListeners.delete(fn);
+    };
+  };
+
+  getHud = (): HudState | null => this.hudState;
   private renderedWhilePaused = false;
   private ui: RunUi;
 
@@ -207,7 +217,18 @@ export class RunController {
     const e = this.engine;
     const def = e.def;
     const limit = def?.isBoss ? D.powerups.usesPerBossStage : D.powerups.usesPerStage;
-    const h: HudState = {
+    const usesLeft = Math.max(0, limit - this.usesThisStage);
+    const meter = Math.floor(this.meter);
+    const timeLeft = Math.ceil(Math.max(0, this.timeLeft));
+    const slowmo = e.slowMoLeft > 0;
+    const freeze = e.freezeLeft > 0;
+    const aim = e.aimThrows > 0;
+    const shield = e.shieldCharges > 0;
+    // Cheap change signature: only emit (and re-render the HUD) when something visible changed.
+    const key = `${this.stage}|${def ? def.knives.length : 0}|${e.queueIndex}|${e.spares}|${this.points}|${meter}|${this.charges}|${usesLeft}|${this.adPowerUsed ? 1 : 0}|${slowmo ? 1 : 0}${freeze ? 1 : 0}${aim ? 1 : 0}${shield ? 1 : 0}|${timeLeft}`;
+    if (key === this.lastHud) return;
+    this.lastHud = key;
+    this.hudState = {
       stage: this.stage,
       stageInWorld: ((this.stage - 1) % D.stagesPerWorld) + 1,
       isBoss: def?.isBoss ?? false,
@@ -216,27 +237,15 @@ export class RunController {
       used: e.queueIndex,
       spares: e.spares,
       points: this.points,
-      meter: Math.floor(this.meter),
+      meter,
       threshold: powerMeterThreshold(this.stage),
       charges: this.charges,
-      usesLeft: Math.max(0, limit - this.usesThisStage),
+      usesLeft,
       adPowerUsed: this.adPowerUsed,
-      active: {
-        slowmo: e.slowMoLeft > 0,
-        freeze: e.freezeLeft > 0,
-        aim: e.aimThrows > 0,
-        extra: e.spares > 0,
-        shield: e.shieldCharges > 0,
-        sweep: false,
-      },
-      timeLeft: Math.ceil(Math.max(0, this.timeLeft)),
-      canThrow: e.canThrow,
+      active: { slowmo, freeze, aim, extra: e.spares > 0, shield, sweep: false },
+      timeLeft,
     };
-    const key = JSON.stringify(h);
-    if (key !== this.lastHud) {
-      this.lastHud = key;
-      this.ui.hud(h);
-    }
+    for (const fn of this.hudListeners) fn();
   }
 
   // ---------------------------------------------------------------- input

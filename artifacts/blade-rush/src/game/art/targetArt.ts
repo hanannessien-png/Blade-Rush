@@ -2,7 +2,7 @@
  * Target materials (one per world) plus apples and spikes. Targets are drawn
  * at a unit radius of 100 around the origin and scaled at render time.
  */
-import { ClipOp, Skia, type SkCanvas, type SkPicture } from '@shopify/react-native-skia';
+import { ClipOp, Skia, type SkCanvas, type SkPath, type SkPicture } from '@shopify/react-native-skia';
 import type { TargetMaterial } from '../../data/worlds';
 import { darken, lighten, mix, withAlpha } from './color';
 import { arc, artRand, blurred, circlePath, fill, linear, oval, poly, radial, record, sparkle, stroke } from './sk';
@@ -18,7 +18,7 @@ function rim(c: SkCanvas, light: string): void {
 
 function bark(c: SkCanvas, dark: string, mid: string, seed: number): void {
   const r = artRand(seed);
-  const p = Skia.Path.Make();
+  const p = Skia.PathBuilder.Make();
   const n = 40;
   for (let i = 0; i <= n; i++) {
     const a = (i / n) * Math.PI * 2;
@@ -29,7 +29,7 @@ function bark(c: SkCanvas, dark: string, mid: string, seed: number): void {
     else p.lineTo(x, y);
   }
   p.close();
-  c.drawPath(p, radial(0, 0, UNIT_R, [mid, dark], [0.85, 1]));
+  c.drawPath(p.build(), radial(0, 0, UNIT_R, [mid, dark], [0.85, 1]));
   const s = stroke(darken(dark, 0.35), 1.5, 0.6);
   for (let i = 0; i < 26; i++) {
     const a = r() * Math.PI * 2;
@@ -43,7 +43,7 @@ function woodFace(c: SkCanvas, pal: TargetPalette, seed: number, faceR: number):
   const r = artRand(seed);
   for (let i = 1; i <= 6; i++) {
     const rr = (faceR / 7) * i + (r() - 0.5) * 3;
-    const p = Skia.Path.Make();
+    const p = Skia.PathBuilder.Make();
     const n = 32;
     for (let k = 0; k <= n; k++) {
       const a = (k / n) * Math.PI * 2;
@@ -54,17 +54,17 @@ function woodFace(c: SkCanvas, pal: TargetPalette, seed: number, faceR: number):
       else p.lineTo(x, y);
     }
     p.close();
-    c.drawPath(p, stroke(ring, 1.4, 0.55));
+    c.drawPath(p.build(), stroke(ring, 1.4, 0.55));
   }
   // Cracks
   const cs = stroke(darken(dark, 0.2), 1.6, 0.6);
   for (let i = 0; i < 3; i++) {
     const a = r() * Math.PI * 2;
-    const p = Skia.Path.Make();
+    const p = Skia.PathBuilder.Make();
     p.moveTo(Math.cos(a) * 12, Math.sin(a) * 12);
     p.lineTo(Math.cos(a + 0.12) * 30, Math.sin(a + 0.12) * 30);
     p.lineTo(Math.cos(a - 0.05) * 46, Math.sin(a - 0.05) * 46);
-    c.drawPath(p, cs);
+    c.drawPath(p.build(), cs);
   }
   c.drawCircle(0, 0, 5, fill(dark, 0.7));
 }
@@ -118,13 +118,13 @@ function drawMaterial(c: SkCanvas, material: TargetMaterial, pal: TargetPalette,
       const bands = [light, mid, accent, light, dark, mid, accent, light];
       for (let i = 0; i < bands.length; i++) {
         const y0 = -UNIT_R + (i * UNIT_R * 2) / bands.length;
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(-UNIT_R, y0);
         p.cubicTo(-40, y0 - 8, 40, y0 + 8, UNIT_R, y0 - 3);
         p.lineTo(UNIT_R, y0 + 30);
         p.lineTo(-UNIT_R, y0 + 30);
         p.close();
-        c.drawPath(p, fill(bands[i], 0.9));
+        c.drawPath(p.build(), fill(bands[i], 0.9));
       }
       const speck = fill(dark, 0.35);
       for (let i = 0; i < 60; i++) c.drawCircle((r() - 0.5) * 190, (r() - 0.5) * 190, 0.8 + r() * 1.4, speck);
@@ -139,7 +139,7 @@ function drawMaterial(c: SkCanvas, material: TargetMaterial, pal: TargetPalette,
       const core = stroke(lighten(accent, 0.45), 1.8, 1);
       for (let i = 0; i < 7; i++) {
         const a = (i / 7) * Math.PI * 2 + r() * 0.4;
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(Math.cos(a) * 8, Math.sin(a) * 8);
         let rr = 8;
         let aa = a;
@@ -148,8 +148,8 @@ function drawMaterial(c: SkCanvas, material: TargetMaterial, pal: TargetPalette,
           aa += (r() - 0.5) * 0.5;
           p.lineTo(Math.cos(aa) * Math.min(rr, 95), Math.sin(aa) * Math.min(rr, 95));
         }
-        c.drawPath(p, glow);
-        c.drawPath(p, core);
+        c.drawPath(p.build(), glow);
+        c.drawPath(p.build(), core);
       }
       c.drawCircle(0, 0, 14, blurred(fill(accent, 0.9), 6));
       c.drawCircle(0, 0, 7, fill(lighten(accent, 0.6)));
@@ -177,11 +177,11 @@ function drawMaterial(c: SkCanvas, material: TargetMaterial, pal: TargetPalette,
       c.drawCircle(0, 0, 86, radial(-18, -22, 100, [light, mid, accent], [0, 0.6, 1]));
       const sw = stroke(darken(dark, 0.1), 1.6, 0.6);
       for (let i = 0; i < 4; i++) {
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         const a = (i / 4) * Math.PI * 2;
         p.moveTo(0, 0);
         p.cubicTo(Math.cos(a) * 40, Math.sin(a) * 40, Math.cos(a + 0.9) * 60, Math.sin(a + 0.9) * 60, Math.cos(a + 1.4) * 78, Math.sin(a + 1.4) * 78);
-        c.drawPath(p, sw);
+        c.drawPath(p.build(), sw);
       }
       c.drawCircle(0, 0, 86, blurred(stroke('#C7F25C', 6, 0.25), 6));
       break;
@@ -208,7 +208,7 @@ function drawMaterial(c: SkCanvas, material: TargetMaterial, pal: TargetPalette,
       break;
     }
     case 'asteroid': {
-      const p = Skia.Path.Make();
+      const p = Skia.PathBuilder.Make();
       for (let i = 0; i <= 36; i++) {
         const a = (i / 36) * Math.PI * 2;
         const rr = UNIT_R - 2 + Math.sin(a * 5 + seed) * 2.5 + (r() - 0.5) * 2;
@@ -216,7 +216,7 @@ function drawMaterial(c: SkCanvas, material: TargetMaterial, pal: TargetPalette,
         else p.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
       }
       p.close();
-      c.drawPath(p, radial(-30, -30, 140, [light, mid, dark], [0, 0.5, 1]));
+      c.drawPath(p.build(), radial(-30, -30, 140, [light, mid, dark], [0, 0.5, 1]));
       for (let i = 0; i < 9; i++) {
         const x = (r() - 0.5) * 140;
         const y = (r() - 0.5) * 140;
@@ -235,12 +235,12 @@ function drawMaterial(c: SkCanvas, material: TargetMaterial, pal: TargetPalette,
       const n = 8;
       for (let i = 0; i < n; i++) {
         const a0 = (i / n) * Math.PI * 2;
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(0, 0);
         p.cubicTo(Math.cos(a0 + 0.6) * 50, Math.sin(a0 + 0.6) * 50, Math.cos(a0 + 0.2) * 90, Math.sin(a0 + 0.2) * 90, Math.cos(a0) * 120, Math.sin(a0) * 120);
         p.lineTo(Math.cos(a0 + 0.38) * 120, Math.sin(a0 + 0.38) * 120);
         p.cubicTo(Math.cos(a0 + 0.55) * 90, Math.sin(a0 + 0.55) * 90, Math.cos(a0 + 0.95) * 50, Math.sin(a0 + 0.95) * 50, 0, 0);
-        c.drawPath(p, fill(i % 2 === 0 ? mid : accent));
+        c.drawPath(p.build(), fill(i % 2 === 0 ? mid : accent));
       }
       c.restore();
       c.drawCircle(0, 0, UNIT_R, radial(-30, -35, UNIT_R * 1.4, [withAlpha('#FFFFFF', 0.55), withAlpha('#FFFFFF', 0), withAlpha('#000000', 0.25)], [0, 0.45, 1]));
@@ -258,7 +258,7 @@ function drawMaterial(c: SkCanvas, material: TargetMaterial, pal: TargetPalette,
         const a = (i / 10) * Math.PI * 2;
         const x = Math.cos(a) * 66;
         const y = Math.sin(a) * 66;
-        const p = Skia.Path.Make();
+        const p = Skia.PathBuilder.Make();
         p.moveTo(x - 4, y - 4);
         p.lineTo(x + 4, y - 4);
         p.lineTo(x, y + 4);
@@ -266,8 +266,8 @@ function drawMaterial(c: SkCanvas, material: TargetMaterial, pal: TargetPalette,
           p.moveTo(x, y - 6);
           p.lineTo(x, y);
         }
-        c.drawPath(p, gg);
-        c.drawPath(p, glyph);
+        c.drawPath(p.build(), gg);
+        c.drawPath(p.build(), glyph);
       }
       c.drawCircle(0, 0, 18, fill(dark, 0.6));
       c.drawCircle(0, 0, 10, blurred(fill(accent, 0.9), 4));
@@ -315,16 +315,17 @@ export function targetPicture(material: TargetMaterial, pal: TargetPalette, key:
 }
 
 /** Path of one wedge of the shattered target (unit radius). */
-const wedgeCache = new Map<number, ReturnType<typeof Skia.Path.Make>>();
+const wedgeCache = new Map<number, SkPath>();
 export function wedgePath(index: number, pieces: number) {
   const key = index * 100 + pieces;
   let p = wedgeCache.get(key);
   if (!p) {
     const sweep = 360 / pieces;
-    p = Skia.Path.Make();
-    p.moveTo(0, 0);
-    p.arcToOval(Skia.XYWHRect(-UNIT_R - 4, -UNIT_R - 4, (UNIT_R + 4) * 2, (UNIT_R + 4) * 2), index * sweep, sweep, false);
-    p.close();
+    p = Skia.PathBuilder.Make()
+      .moveTo(0, 0)
+      .arcToOval(Skia.XYWHRect(-UNIT_R - 4, -UNIT_R - 4, (UNIT_R + 4) * 2, (UNIT_R + 4) * 2), index * sweep, sweep, false)
+      .close()
+      .build();
     wedgeCache.set(key, p);
   }
   return p;
@@ -354,22 +355,22 @@ function drawApple(c: SkCanvas, kind: AppleKind): void {
     c.drawLine(9, -5, -4, 11, f);
     c.drawPath(poly(pts), stroke(d, 1, 0.8));
   } else {
-    const p = Skia.Path.Make();
+    const p = Skia.PathBuilder.Make();
     p.moveTo(0, -7);
     p.cubicTo(5, -12, 12, -8, 11, 0);
     p.cubicTo(10, 8, 5, 12, 0, 10);
     p.cubicTo(-5, 12, -10, 8, -11, 0);
     p.cubicTo(-12, -8, -5, -12, 0, -7);
-    c.drawPath(p, radial(-4, -4, 15, [l, m, d], [0, 0.55, 1]));
-    c.drawPath(p, stroke(darken(d, 0.3), 0.8, 0.6));
+    c.drawPath(p.build(), radial(-4, -4, 15, [l, m, d], [0, 0.55, 1]));
+    c.drawPath(p.build(), stroke(darken(d, 0.3), 0.8, 0.6));
     oval(c, -4.5, -3.5, 2.6, 3.6, fill('#FFFFFF', 0.6));
   }
   c.drawLine(0, -7, 1.5, -13, stroke('#5A3A1A', 1.8));
-  const leaf = Skia.Path.Make();
+  const leaf = Skia.PathBuilder.Make();
   leaf.moveTo(1.5, -11);
   leaf.quadTo(6, -16, 10, -12);
   leaf.quadTo(6, -9, 1.5, -11);
-  c.drawPath(leaf, fill(kind === 'crystal' ? '#BFF6FF' : '#4CB648'));
+  c.drawPath(leaf.build(), fill(kind === 'crystal' ? '#BFF6FF' : '#4CB648'));
   if (kind !== 'apple') {
     sparkle(c, 7, -5, 3.5, fill('#FFFFFF', 0.95));
   }
@@ -380,19 +381,19 @@ function drawAppleHalf(c: SkCanvas, kind: AppleKind, side: number): void {
   const flesh = kind === 'apple' ? '#FFF3D6' : kind === 'golden' ? '#FFF6C9' : '#E4FBFF';
   c.save();
   if (side === 1) c.scale(-1, 1);
-  const outer = Skia.Path.Make();
+  const outer = Skia.PathBuilder.Make();
   outer.moveTo(0, -9);
   outer.cubicTo(-6, -12, -12, -7, -11, 0);
   outer.cubicTo(-10, 8, -5, 11, 0, 10);
   outer.close();
-  c.drawPath(outer, fill(m));
-  c.drawPath(outer, stroke(d, 0.8, 0.8));
-  const inner = Skia.Path.Make();
+  c.drawPath(outer.build(), fill(m));
+  c.drawPath(outer.build(), stroke(d, 0.8, 0.8));
+  const inner = Skia.PathBuilder.Make();
   inner.moveTo(0, -7);
   inner.cubicTo(-4, -9, -9, -5, -8.5, 0);
   inner.cubicTo(-8, 6, -4, 8.5, 0, 8);
   inner.close();
-  c.drawPath(inner, fill(flesh));
+  c.drawPath(inner.build(), fill(flesh));
   oval(c, -2.5, 0, 1, 1.8, fill('#4A2A10'));
   c.restore();
 }

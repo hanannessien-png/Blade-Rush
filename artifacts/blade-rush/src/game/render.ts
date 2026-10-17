@@ -2,7 +2,7 @@
  * Draws the engine state into one SkPicture per frame. All persistent art is
  * pre-recorded (knives, targets, bosses, backgrounds); this file only places it.
  */
-import { Skia, ClipOp, type SkCanvas, type SkPaint, type SkPicture } from '@shopify/react-native-skia';
+import { Skia, ClipOp, TileMode, type SkCanvas, type SkColor, type SkPaint, type SkPath, type SkPicture, type SkRect } from '@shopify/react-native-skia';
 import { DIFFICULTY as D, type KnifeSize } from '../config/difficulty';
 import { BOSSES } from '../data/bosses';
 import type { KnifeStyle } from '../data/knives';
@@ -12,7 +12,7 @@ import { AMBIENT_COUNT, backgroundPictures, BG_MARGIN, drawAmbient, makeAmbientP
 import { bossBodyPicture, drawBossFace } from './art/bossArt';
 import { shiftHue } from './art/color';
 import { knifePicture } from './art/knifeArt';
-import { blurred, fill, linear, sparkle, stroke } from './art/sk';
+import { blurred, fill, linear, stroke } from './art/sk';
 import { appleHalfPicture, applePicture, spikePicture, targetPicture, UNIT_R, wedgePath, type AppleKind, type TargetPalette } from './art/targetArt';
 import type { GameEngine } from './engine';
 
@@ -50,6 +50,10 @@ interface Paints {
   bubbleGlow: SkPaint;
   trail: SkPaint;
   targetGlow: SkPaint;
+  ghost: SkPaint;
+  /** Unit shapes reused every frame instead of allocating new ones. */
+  unitRect: SkRect;
+  sparkle: SkPath;
 }
 
 export interface RenderInput {
@@ -68,6 +72,19 @@ export class Renderer {
   private world: WorldDef = WORLDS[0];
   private pal = worldPalette(WORLDS[0], 0);
   private recent: SkPicture[] = [];
+  private colors = new Map<string, SkColor>();
+  private glowFor = '';
+  private trailFor = '';
+
+  /** Parsed colours are cached: Skia.Color() on every particle every frame adds up. */
+  private col(hex: string): SkColor {
+    let c = this.colors.get(hex);
+    if (!c) {
+      c = Skia.Color(hex);
+      this.colors.set(hex, c);
+    }
+    return c;
+  }
 
   private ensurePaints(): Paints {
     if (!this.paints) {
@@ -83,6 +100,9 @@ export class Renderer {
         bubbleGlow: blurred(fill('#7FE3FF', 0.22), 8),
         trail: fill('#FFFFFF', 0.4),
         targetGlow: fill('#FFFFFF'),
+        ghost: Skia.Paint(),
+        unitRect: Skia.XYWHRect(0, 0, 1, 1),
+        sparkle: unitSparkle(),
       };
     }
     return this.paints;
@@ -162,12 +182,20 @@ export class Renderer {
     const r = e.radius * intro;
     const knifePic = knifePicture(input.knifeId, input.knifeStyle);
 
-    // Glow behind the target
-    P.targetGlow.setShader(
-      Skia.Shader.MakeRadialGradient(Skia.Point(e.cx, e.cy), r * 1.9, [Skia.Color(this.pal.glow), Skia.Color('transparent')], [0, 1], 0),
-    );
+    // Glow behind the target: a unit radial gradient built once per world, scaled into place.
+    if (this.glowFor !== this.pal.glow) {
+      this.glowFor = this.pal.glow;
+      P.targetGlow.setShader(
+        Skia.Shader.MakeRadialGradient(Skia.Point(0, 0), 1, [this.col(this.pal.glow), this.col('transparent')], [0, 1], TileMode.Clamp),
+      );
+    }
     P.targetGlow.setAlphaf(def.isBoss ? 0.55 : 0.4);
-    c.drawCircle(e.cx, e.cy, r * 1.9, P.targetGlow);
+    const gr = Math.max(0.01, r * 1.9);
+    c.save();
+    c.translate(e.cx, e.cy);
+    c.scale(gr, gr);
+    c.drawCircle(0, 0, 1, P.targetGlow);
+    c.restore();
 
     // Orbiting shields
     if (e.shields.length) {
@@ -191,7 +219,7 @@ export class Renderer {
       const knifeHalf = halfWidthDeg(D.knifeWidthPx[e.currentKnifeSize ?? 'normal'], e.radius);
       const off = Math.abs(((norm360(wa - 90) + 180) % 360) - 180);
       if (off < Math.max(1, gap.width / 2 - knifeHalf)) {
-        sparkle(c, e.cx, e.cy + r + 28, 9, P.dot);
+        this.sparkle(c, e.cx, e.cy + r + 28, 9, P);
       }
     }
 
@@ -220,9 +248,8 @@ export class Renderer {
         c.rotate(wa + 90, 0, 0);
         c.scale(intro, intro);
         if (ghost && alpha < 0.98) {
-          const lp = Skia.Paint();
-          lp.setAlphaf(Math.max(0.12, alpha));
-          c.saveLayer(lp);
+          P.ghost.setAlphaf(Math.max(0.12, alpha));
+          c.saveLayer(P.ghost);
           c.drawPicture(spikePicture(true));
           c.restore();
         } else {
@@ -266,19 +293,22 @@ export class Renderer {
   private drawThrowables(c: SkCanvas, e: GameEngine, input: RenderInput, P: Paints): void {
     const knifePic = knifePicture(input.knifeId, input.knifeStyle);
     const glow = input.knifeStyle.glow;
+    const trailColor = glow ?? '#FFFFFF';
+    if (e.flying.length && this.trailFor !== trailColor) {
+      // Unit vertical gradient, built once per knife colour and scaled per knife.
+      this.trailFor = trailColor;
+      P.trail.setShader(
+        Skia.Shader.MakeLinearGradient(Skia.Point(0, 0), Skia.Point(0, 1), [this.col(trailColor), this.col('transparent')], [0, 1], TileMode.Clamp),
+      );
+    }
     for (const k of e.flying) {
       const len = 46;
-      P.trail.setShader(
-        Skia.Shader.MakeLinearGradient(
-          Skia.Point(e.cx, k.y + 20),
-          Skia.Point(e.cx, k.y + 20 + len * 2),
-          [Skia.Color(glow ?? '#FFFFFF'), Skia.Color('transparent')],
-          [0, 1],
-          0,
-        ),
-      );
       P.trail.setAlphaf(glow ? 0.7 : 0.35);
-      c.drawRect(Skia.XYWHRect(e.cx - 3, k.y + 20, 6, len * 2), P.trail);
+      c.save();
+      c.translate(e.cx - 3, k.y + 20);
+      c.scale(6, len * 2);
+      c.drawRect(P.unitRect, P.trail);
+      c.restore();
       c.save();
       c.translate(e.cx, k.y);
       c.scale(SIZE_SCALE[k.size], 1);
@@ -345,38 +375,65 @@ export class Renderer {
       const k = p.life / p.maxLife;
       switch (p.kind) {
         case 'chip':
-          P.dot.setColor(Skia.Color(i % 2 ? chipA : chipB));
+          P.dot.setColor(this.col(i % 2 ? chipA : chipB));
           P.dot.setAlphaf(Math.min(1, k * 1.6));
-          c.drawRect(Skia.XYWHRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size * 0.7), P.dot);
+          c.save();
+          c.translate(p.x - p.size / 2, p.y - p.size / 2);
+          c.scale(p.size, p.size * 0.7);
+          c.drawRect(P.unitRect, P.dot);
+          c.restore();
           break;
         case 'juice':
-          P.dot.setColor(Skia.Color(p.color));
+          P.dot.setColor(this.col(p.color));
           P.dot.setAlphaf(Math.min(1, k * 1.4));
           c.drawCircle(p.x, p.y, p.size * (0.6 + k * 0.4), P.dot);
           break;
         case 'spark':
-          P.line.setColor(Skia.Color(p.color));
+          P.line.setColor(this.col(p.color));
           P.line.setAlphaf(k);
           c.drawLine(p.x, p.y, p.x - p.vx * 0.03, p.y - p.vy * 0.03, P.line);
           break;
         case 'star':
-          P.dot.setColor(Skia.Color(p.color));
+          P.dot.setColor(this.col(p.color));
           P.dot.setAlphaf(k);
-          sparkle(c, p.x, p.y, p.size * 1.8, P.dot);
+          this.sparkle(c, p.x, p.y, p.size * 1.8, P);
           break;
         case 'ring':
-          P.line.setColor(Skia.Color(p.color));
+          P.line.setColor(this.col(p.color));
           P.line.setAlphaf(k);
           c.drawCircle(p.x, p.y, p.size, P.line);
           break;
       }
     }
+    // Shared paints are reused; leave them in their neutral state.
+    P.dot.setColor(this.col('#FFFFFF'));
+    P.dot.setAlphaf(1);
+    P.line.setColor(this.col('#FFFFFF'));
+    P.line.setAlphaf(1);
+  }
+
+  private sparkle(c: SkCanvas, x: number, y: number, r: number, P: Paints): void {
+    c.save();
+    c.translate(x, y);
+    c.scale(r, r);
+    c.drawPath(P.sparkle, P.dot);
+    c.restore();
   }
 
   dispose(): void {
     for (const p of this.recent) p.dispose?.();
     this.recent = [];
   }
+}
+
+/** Four-point star with unit radius, centred on the origin. */
+function unitSparkle(): SkPath {
+  const s = 0.28;
+  const p = Skia.PathBuilder.Make();
+  const pts: [number, number][] = [[0, -1], [s, -s], [1, 0], [s, s], [0, 1], [-s, s], [-1, 0], [-s, -s]];
+  pts.forEach(([x, y], i) => (i === 0 ? p.moveTo(x, y) : p.lineTo(x, y)));
+  p.close();
+  return p.build();
 }
 
 export { linear, BG_MARGIN };

@@ -12,6 +12,7 @@ import {
   type SkCanvas,
   type SkPaint,
   type SkPath,
+  type SkPathBuilder,
   type SkPicture,
 } from '@shopify/react-native-skia';
 
@@ -68,21 +69,22 @@ export function record(width: number, height: number, draw: (c: SkCanvas) => voi
   return rec.finishRecordingAsPicture();
 }
 
-export function path(): SkPath {
-  return Skia.Path.Make();
+/** Paths are built with PathBuilder (the mutable SkPath API is deprecated) and frozen with build(). */
+export function path(): SkPathBuilder {
+  return Skia.PathBuilder.Make();
 }
 
 export function poly(points: readonly (readonly [number, number])[], close = true): SkPath {
-  const p = Skia.Path.Make();
+  const p = Skia.PathBuilder.Make();
   points.forEach(([x, y], i) => (i === 0 ? p.moveTo(x, y) : p.lineTo(x, y)));
   if (close) p.close();
-  return p;
+  return p.build();
 }
 
 export function circlePath(x: number, y: number, r: number): SkPath {
-  const p = Skia.Path.Make();
+  const p = Skia.PathBuilder.Make();
   p.addCircle(x, y, r);
-  return p;
+  return p.build();
 }
 
 export function rrect(x: number, y: number, w: number, h: number, r: number) {

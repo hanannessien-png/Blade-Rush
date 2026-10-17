@@ -19,7 +19,7 @@ interface DisplayProps {
   numberOfLines?: number;
 }
 
-export function DisplayText({
+export const DisplayText = React.memo(function DisplayText({
   children,
   size = 28,
   color = game.white,
@@ -38,7 +38,8 @@ export function DisplayText({
     textAlign: align,
     letterSpacing: 0.5,
   };
-  const offsets = w > 0 ? OFFSETS.map(([x, y]) => [x * w, y * w] as const) : [];
+  // Thin outlines look the same with four diagonal copies; that halves the text nodes.
+  const offsets = w <= 0 ? [] : w <= 2 ? DIAGONALS.map(([x, y]) => [x * w, y * w] as const) : OFFSETS.map(([x, y]) => [x * w, y * w] as const);
   return (
     <View style={containerStyle}>
       {offsets.map(([dx, dy], i) => (
@@ -61,7 +62,14 @@ export function DisplayText({
       </Text>
     </View>
   );
-}
+});
+
+const DIAGONALS: readonly (readonly [number, number])[] = [
+  [0.85, 0.85],
+  [-0.85, 0.85],
+  [0.85, -0.85],
+  [-0.85, -0.85],
+];
 
 const OFFSETS: readonly (readonly [number, number])[] = [
   [1, 0],

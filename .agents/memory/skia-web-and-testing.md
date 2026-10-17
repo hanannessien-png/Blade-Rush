@@ -10,3 +10,7 @@ description: How the Twirlblade web preview loads Skia, and how to drive it in a
 **Rule:** The Screenshot tool often captures the game route before the Skia canvas draws (blank background). Verify gameplay with local `chromium --headless=new --remote-debugging-port` driven over CDP (Node 24 has a global WebSocket), using `Emulation.setDeviceMetricsOverride` for a 400 px phone width.
 **Why:** `--window-size` below ~500 px is clamped in headless Chrome, which made the layout look mis-scaled.
 **How to apply:** Click by `aria-label` (DisplayText duplicates text for its outline, so innerText matching is noisy). Use `/game/<mode>?stage=N` (dev only) to jump to bosses and worlds.
+
+**Rule:** Headless chromium frame times and CPU profiles are dominated by software WebGL (swiftshader), so they cannot judge Android smoothness. Judge perf by counting React renders and per-frame Skia allocations instead.
+**Why:** Profiles showed ~1 s frames from GL emulation while the game loop itself was ~0.3 ms.
+**How to apply:** For art refactors, export pictures to PNG before and after in the browser and pixel-diff them with `magick compare -metric AE`.

@@ -1,1 +1,1 @@
-- [Skia web entry and browser testing](skia-web-and-testing.md) — CanvasKit must load before the router entry; verify gameplay via headless chromium + CDP, not the Screenshot tool.
+- [Skia web entry and browser testing](skia-web-and-testing.md) — CanvasKit loads before router; test via chromium CDP; web perf numbers are swiftshader noise; pixel-diff art refactors.
